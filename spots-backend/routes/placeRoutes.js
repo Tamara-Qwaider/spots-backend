@@ -38,5 +38,31 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
+///UPDATE place
+router.put("/:id",async(req,res)=>{
+  try {
+    const updatedPlace = await Place.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {new:true}
+    );
+    res.json({
+      message:"place updateed successfuly",
+      place:updatedPlace,
+    });
+  }catch(err){
+    res.status(500).json({message:err.message});
+  }
+});
+//DELETE place
+router.delete("/:id",async(req,res)=>{
+  try{
+    await Place.findByIdAndDelete(req.params.id);
+    res.json({
+      message:"Place deleted successfylly",
+    });
+  }catch(err){
+    res.status(500).json({message:err.message});
+  }
+});
 module.exports = router;
