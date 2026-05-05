@@ -4,7 +4,9 @@ const jwt = require("jsonwebtoken");
 const router = express.Router();
 const User = require("../models/User");
 
-// SIGNUP
+// ==========================================
+// 1. SIGNUP (تسجيل مستخدم جديد)
+// ==========================================
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password, interests } = req.body;
@@ -14,13 +16,11 @@ router.post("/signup", async (req, res) => {
     }
 
     const existingUser = await User.findOne({ email });
-
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = new User({
       name,
       email,
@@ -30,11 +30,7 @@ router.post("/signup", async (req, res) => {
 
     await newUser.save();
 
-    const token = jwt.sign(
-      { id: newUser._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     res.status(201).json({
       message: "User created successfully",
@@ -47,11 +43,13 @@ router.post("/signup", async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Signup error: " + err.message });
   }
 });
 
-// LOGIN
+// ==========================================
+// 2. LOGIN (تسجيل الدخول)
+// ==========================================
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -61,63 +59,25 @@ router.post("/login", async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
+    if (!user) return res.status(400).json({ message: "Invalid email or password" });
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid email or password" });
 
-    if (!isPasswordCorrect) {
-      return res.status(400).json({ message: "Invalid email or password" });
-    }
-
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     res.json({
-      message: "Login successful",
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         interests: user.interests,
+        image: user.image,
       },
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-// UPDATE INTERESTS
-router.put("/interests", async (req, res) => {
-  try {
-    const { userId, interests } = req.body;
-
-    if (!userId || !interests) {
-      return res.status(400).json({ message: "Missing userId or interests" });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { interests },
-      { new: true }
-    );
-
-    res.json({
-      message: "Interests updated successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        interests: user.interests,
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Login error: " + err.message });
   }
 });
 
