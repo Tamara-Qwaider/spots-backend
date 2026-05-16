@@ -37,6 +37,21 @@ const userSchema = new mongoose.Schema({
     type: String, 
     default: () => new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' }) 
   },
+  isBlocked: {
+  type: Boolean,
+  default: false,
+},
+
+permissions: {
+  createMeetup: {
+    type: Boolean,
+    default: true,
+  },
+  addOthers: {
+    type: Boolean,
+    default: true,
+  },
+},
   // بدلاً من الـ ObjectId، نستخدم مصفوفة عادية تخزن بيانات المكان كاملة
   savedPlaces: { 
     type: Array, 

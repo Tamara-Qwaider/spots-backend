@@ -74,6 +74,8 @@ router.post("/login", async (req, res) => {
         email: user.email,
         interests: user.interests,
         image: user.image,
+        isBlocked: user.isBlocked,
+        permissions: user.permissions,
       },
     });
   } catch (err) {
