@@ -4,11 +4,20 @@ const mongoose = require("mongoose");
 const path = require("path");
 require("dotenv").config();
 
+
+
+const authRoutes = require("./routes/authRoutes");
+const placeRoutes = require("./routes/placeRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
 const app = express();
 
 // 1. الميدل وير الأساسي
 app.use(cors());
 app.use(express.json());
+app.use("/api/auth", authRoutes);
+app.use("/api/places", placeRoutes);
+app.use("/api/categories", categoryRoutes);
+
 
 // 2. طباعة أي طلب يصل للسيرفر (لمراقبة الروابط والتأكد من عملها)
 app.use((req, res, next) => {
@@ -17,9 +26,7 @@ app.use((req, res, next) => {
 });
 
 // 3. المسارات (Routes)
-app.use("/api/auth", require("./routes/authRoutes"));       // للمصادقة (Login/Signup)
 app.use("/api/users", require("./routes/userRoutes"));      // للبروفايل والتعديل (Profile/Update)
-app.use("/api/places", require("./routes/placeRoutes"));    // للأماكن السياحية
 app.use("/api/activities", require("./routes/activityRoutes")); // للأنشطة
 app.use("/api/meetups", require("./routes/meetupRoutes"));  // ⬅️ إضافة مسار الميت آب الجديد
 

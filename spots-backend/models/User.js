@@ -1,10 +1,23 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-  // الحقول الأساسية (لم تتغير)
+  firebaseUID: String,
+
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+
   password: { type: String, required: true },
+
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
+
   interests: [String],
 
   // الحقول الجديدة لصفحة الـ Profile (تمت إضافتها)
