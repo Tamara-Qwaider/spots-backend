@@ -80,5 +80,28 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Login error: " + err.message });
   }
 });
+// هذا الجزء هو المسؤول عن استلام الاهتمامات من الصفحة وحفظها
+router.put("/interests", async (req, res) => {
+  try {
+    const { userId, interests } = req.body;
 
+    // البحث عن المستخدم وتحديث قائمة اهتماماته
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: { interests: interests } },
+      { new: true } // ليعيد لنا البيانات الجديدة بعد التحديث
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      message: "Interests updated successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error: " + err.message });
+  }
+});
 module.exports = router;

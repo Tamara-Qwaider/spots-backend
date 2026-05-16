@@ -24,12 +24,11 @@ const userSchema = new mongoose.Schema({
     type: String, 
     default: () => new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' }) 
   },
-  savedPlaces: [
-    { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Place" // تأكدي أن اسم الموديل للأماكن هو "Place"
-    }
-  ],
+  // بدلاً من الـ ObjectId، نستخدم مصفوفة عادية تخزن بيانات المكان كاملة
+  savedPlaces: { 
+    type: Array, 
+    default: [] 
+  },
 });
 
 module.exports = mongoose.model("User", userSchema);

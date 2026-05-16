@@ -17,14 +17,13 @@ app.use((req, res, next) => {
 });
 
 // 3. المسارات (Routes)
-// تم فصل الـ Auth عن الـ Users كما طلبتِ
-app.use("/api/auth", require("./routes/authRoutes"));     // للمصادقة (Login/Signup)
-app.use("/api/users", require("./routes/userRoutes"));    // للبروفايل والتعديل (Profile/Update)
-app.use("/api/places", require("./routes/placeRoutes"));
-app.use("/api/activities", require("./routes/activityRoutes"));
+app.use("/api/auth", require("./routes/authRoutes"));       // للمصادقة (Login/Signup)
+app.use("/api/users", require("./routes/userRoutes"));      // للبروفايل والتعديل (Profile/Update)
+app.use("/api/places", require("./routes/placeRoutes"));    // للأماكن السياحية
+app.use("/api/activities", require("./routes/activityRoutes")); // للأنشطة
+app.use("/api/meetups", require("./routes/meetupRoutes"));  // ⬅️ إضافة مسار الميت آب الجديد
 
 // 4. إعداد مجلد الصور (Uploads)
-// السطر التالي يضمن أن الروابط مثل http://localhost:5000/uploads/image.jpg تعمل
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 5. الاتصال بقاعدة البيانات وتشغيل السيرفر
