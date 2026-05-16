@@ -31,8 +31,8 @@ const userSchema = new mongoose.Schema({
   },
   image: { 
     type: String, 
-    default: "https://images.unsplash.com/photo-1649589244330-09ca58e4fa64?auto=format&fit=crop&w=500&q=80" 
-  },
+    default: "" 
+  },  
   joined: { 
     type: String, 
     default: () => new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' }) 
