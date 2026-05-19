@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema({
   firebaseUID: String,
 
-  name: { type: String, required: true },
+  name: { type: String, required: true,unique: true, },
 
   email: {
     type: String,
@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
   // الحقول الجديدة لصفحة الـ Profile (تمت إضافتها)
   location: { 
     type: String, 
-    default: "Amman, Jordan" 
+    default: "" 
   },
   bio: { 
     type: String, 
@@ -47,7 +47,7 @@ permissions: {
     type: Boolean,
     default: true,
   },
-  addOthers: {
+  joinMeetups: {
     type: Boolean,
     default: true,
   },
@@ -57,6 +57,11 @@ permissions: {
     type: Array, 
     default: [] 
   },
+  role: {
+  type: String,
+  enum: ["user", "admin"],
+  default: "user",
+},
 });
 
 module.exports = mongoose.model("User", userSchema);

@@ -4,6 +4,8 @@ const path = require("path");
 const fs = require("fs");
 const router = express.Router();
 const User = require("../models/User");
+const Meetup = require("../models/Meetup");
+const protect = require("../middleware/authMiddleware");
 
 // إعداد Multer
 const storage = multer.diskStorage({
@@ -21,7 +23,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // GET ALL USERS
-router.get("/", async (req, res) => {
+router.get("/", protect, async (req, res) => {
   try {
     const users = await User.find().select("-password");
     res.json(users);
@@ -31,7 +33,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET PROFILE
-router.get("/profile/:id", async (req, res) => {
+router.get("/profile/:id", protect, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -42,7 +44,7 @@ router.get("/profile/:id", async (req, res) => {
 });
 
 // UPDATE PROFILE
-router.put("/profile/update/:id", upload.single("image"), async (req, res) => {
+router.put("/profile/update/:id", protect, upload.single("image"), async (req, res) => {
   try {
     const { name, location, bio, interests, savedPlaces, newPlace } = req.body;
     let query = { $set: {} };
@@ -83,21 +85,32 @@ router.put("/profile/update/:id", upload.single("image"), async (req, res) => {
 });
 
 // DELETE USER
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", protect, async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    const userId = req.params.id;
+
+    const deletedUser = await User.findByIdAndDelete(userId);
 
     if (!deletedUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ message: "User deleted successfully" });
+    await Meetup.updateMany(
+      {},
+      {
+        $pull: {
+          attendees: { id: userId },
+        },
+      }
+    );
+
+    res.json({ message: "User deleted successfully and removed from meetups" });
   } catch (err) {
     res.status(500).json({ message: "Delete failed: " + err.message });
   }
 });
 // BLOCK / UNBLOCK USER
-router.put("/:id/block", async (req, res) => {
+router.put("/:id/block", protect, async (req, res) => {
   try {
     const { isBlocked } = req.body;
 
@@ -120,41 +133,19 @@ router.put("/:id/block", async (req, res) => {
   }
 });
 
-// BLOCK / UNBLOCK USER
-router.put("/:id/block", async (req, res) => {
-  try {
-    const { isBlocked } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isBlocked },
-      { new: true }
-    ).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({
-      message: "User block status updated",
-      user,
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 // UPDATE USER PERMISSIONS
-router.put("/:id/permissions", async (req, res) => {
+router.put("/:id/permissions", protect, async (req, res) => {
   try {
-    const { createMeetup, addOthers } = req.body;
+    const { createMeetup, joinMeetups } = req.body;
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
       {
         permissions: {
           createMeetup,
-          addOthers,
+          joinMeetups,
         },
       },
       { new: true }

@@ -14,6 +14,7 @@ const app = express();
 // 1. الميدل وير الأساسي
 app.use(cors());
 app.use(express.json());
+app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/places", placeRoutes);
 app.use("/api/categories", categoryRoutes);
