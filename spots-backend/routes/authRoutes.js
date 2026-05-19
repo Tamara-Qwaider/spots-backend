@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 const User = require("../models/User");
+const Meetup = require("../models/Meetup");
 
 // ==========================================
 // 1. SIGNUP (تسجيل مستخدم جديد)
@@ -18,6 +19,13 @@ router.post("/signup", async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
+    }
+    const existingUsername = await User.findOne({ name });
+
+    if (existingUsername) {
+      return res.status(400).json({
+        message: "Username already taken",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -52,19 +60,32 @@ router.post("/signup", async (req, res) => {
 // ==========================================
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return res.status(400).json({ message: "Please fill all fields" });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid email or password" });
+    const user = await User.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { name: identifier },
+      ],
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid username/email or password" });
+    }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid email or password" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    if (!isPasswordCorrect) {
+      return res.status(400).json({ message: "Invalid username/email or password" });
+    }
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.json({
       token,
@@ -72,10 +93,12 @@ router.post("/login", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
         interests: user.interests,
         image: user.image,
         isBlocked: user.isBlocked,
         permissions: user.permissions,
+        savedPlaces: user.savedPlaces,
       },
     });
   } catch (err) {

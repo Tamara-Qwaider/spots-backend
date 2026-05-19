@@ -20,6 +20,7 @@ app.use((req, res, next) => {
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/auth", authRoutes);
 app.use("/api/places", placeRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -36,7 +37,9 @@ app.use("/api/notifications", require("./routes/notificationRoutes"));
 const PORT = 5000;
 
 mongoose
-  .connect("mongodb+srv://GP_db_user:Bh8ZUmcmA8Ch2cC1@cluster0.l8gnj0g.mongodb.net/spots-db?retryWrites=true&w=majority")
+  .connect(
+    "mongodb+srv://GP_db_user:Bh8ZUmcmA8Ch2cC1@cluster0.l8gnj0g.mongodb.net/spots-db?retryWrites=true&w=majority"
+  )
   .then(() => {
     console.log("MongoDB connected Successfully with latest drivers! ✅🎉");
     app.listen(PORT, () =>

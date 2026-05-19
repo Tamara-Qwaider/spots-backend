@@ -1,12 +1,15 @@
 const express = require("express");
 const router = express.Router();
+
 const Meetup = require("../models/Meetup");
 const Notification = require("../models/Notification");
+const protect = require("../middleware/authMiddleware");
 
 // 1. جلب كل اللقاءات
-router.get("/", async (req, res) => {
+router.get("/", protect, async (req, res) => {
   try {
     const meetups = await Meetup.find().sort({ createdAt: -1 });
+
     res.json(meetups);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -14,7 +17,7 @@ router.get("/", async (req, res) => {
 });
 
 // 2. إنشاء لقاء جديد
-router.post("/create", async (req, res) => {
+router.post("/create", protect, async (req, res) => {
   try {
     const {
       title,
@@ -26,11 +29,13 @@ router.post("/create", async (req, res) => {
       maxParticipants,
       createdBy,
       attendees,
-      img
+      img,
     } = req.body;
 
     const finalAttendees =
-      attendees && attendees.length > 0 ? attendees : [createdBy || "Host"];
+      attendees && attendees.length > 0
+        ? attendees
+        : [createdBy || "Host"];
 
     const meetup = new Meetup({
       title,
@@ -42,62 +47,26 @@ router.post("/create", async (req, res) => {
       maxParticipants: Number(maxParticipants) || 10,
       createdBy: createdBy || "Guest",
       attendees: finalAttendees,
-      img
+      img,
     });
 
     const newMeetup = await meetup.save();
+
     res.status(201).json(newMeetup);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-// Optional: إنشاء لقاء من /api/meetups مباشرة
-router.post("/", async (req, res) => {
-  try {
-    const {
-      title,
-      location,
-      date,
-      time,
-      invitedPeople,
-      notes,
-      maxParticipants,
-      createdBy,
-      attendees,
-      img
-    } = req.body;
-
-    const finalAttendees =
-      attendees && attendees.length > 0 ? attendees : [createdBy || "Host"];
-
-    const meetup = new Meetup({
-      title,
-      location,
-      date,
-      time,
-      invitedPeople: invitedPeople || [],
-      notes,
-      maxParticipants: Number(maxParticipants) || 10,
-      createdBy: createdBy || "Guest",
-      attendees: finalAttendees,
-      img
-    });
-
-    const newMeetup = await meetup.save();
-    res.status(201).json(newMeetup);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// 3. تعديل لقاء من الأدمن
-router.put("/:id", async (req, res) => {
+// 3. تعديل لقاء
+router.put("/:id", protect, async (req, res) => {
   try {
     const meetup = await Meetup.findById(req.params.id);
 
     if (!meetup) {
-      return res.status(404).json({ message: "Meetup not found" });
+      return res.status(404).json({
+        message: "Meetup not found",
+      });
     }
 
     const oldTitle = meetup.title;
@@ -111,7 +80,8 @@ router.put("/:id", async (req, res) => {
 
     if (req.body.maxParticipants !== undefined) {
       meetup.maxParticipants =
-        Number(req.body.maxParticipants) || meetup.maxParticipants;
+        Number(req.body.maxParticipants) ||
+        meetup.maxParticipants;
     }
 
     if (Array.isArray(req.body.attendees)) {
@@ -124,7 +94,8 @@ router.put("/:id", async (req, res) => {
 
     const updatedMeetup = await meetup.save();
 
-    const attendeesToNotify = updatedMeetup.attendees || [];
+    const attendeesToNotify =
+      updatedMeetup.attendees || [];
 
     if (attendeesToNotify.length > 0) {
       await Notification.insertMany(
@@ -133,27 +104,32 @@ router.put("/:id", async (req, res) => {
           meetupId: updatedMeetup._id.toString(),
           meetupTitle: updatedMeetup.title,
           type: "edit",
-          message: `Meetup "${oldTitle}" has been updated by admin.`
+          message: `Meetup "${oldTitle}" has been updated by admin.`,
         }))
       );
     }
 
     res.json(updatedMeetup);
   } catch (err) {
-    res.status(500).json({ message: "Error updating meetup" });
+    res.status(500).json({
+      message: "Error updating meetup",
+    });
   }
 });
 
 // 4. حذف لقاء
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", protect, async (req, res) => {
   try {
     const meetup = await Meetup.findById(req.params.id);
 
     if (!meetup) {
-      return res.status(404).json({ message: "Meetup not found" });
+      return res.status(404).json({
+        message: "Meetup not found",
+      });
     }
 
-    const attendeesToNotify = meetup.attendees || [];
+    const attendeesToNotify =
+      meetup.attendees || [];
 
     if (attendeesToNotify.length > 0) {
       await Notification.insertMany(
@@ -162,71 +138,92 @@ router.delete("/:id", async (req, res) => {
           meetupId: meetup._id.toString(),
           meetupTitle: meetup.title,
           type: "delete",
-          message: `Meetup "${meetup.title}" has been deleted by admin.`
+          message: `Meetup "${meetup.title}" has been deleted by admin.`,
         }))
       );
     }
 
     await Meetup.findByIdAndDelete(req.params.id);
 
-    res.json({ message: "Meetup deleted successfully" });
+    res.json({
+      message: "Meetup deleted successfully",
+    });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete" });
+    res.status(500).json({
+      message: "Failed to delete",
+    });
   }
 });
 
-// 5. الانضمام إلى لقاء / قبول الدعوة
-router.put("/:id/join", async (req, res) => {
+// 5. الانضمام إلى لقاء
+router.put("/:id/join", protect, async (req, res) => {
   try {
     const { userName } = req.body;
+
+    if (!userName) {
+      return res.status(400).json({
+        message: "userName is required",
+      });
+    }
+
     const meetup = await Meetup.findById(req.params.id);
 
     if (!meetup) {
-      return res.status(404).json({ message: "Meetup not found" });
+      return res.status(404).json({
+        message: "Meetup not found",
+      });
     }
 
-    if (!userName) {
-      return res.status(400).json({ message: "userName is required" });
-    }
-
-    const maxLimit = meetup.maxParticipants || 10;
+    const maxLimit =
+      meetup.maxParticipants || 10;
 
     if (meetup.attendees.length >= maxLimit) {
-      return res.status(400).json({ message: "Sorry, this meetup is full!" });
+      return res.status(400).json({
+        message: "Sorry, this meetup is full!",
+      });
     }
 
     if (meetup.attendees.includes(userName)) {
       return res.status(400).json({
-        message: "You have already joined this meetup!"
+        message:
+          "You have already joined this meetup!",
       });
     }
 
     meetup.attendees.push(userName);
 
-    meetup.invitedPeople = meetup.invitedPeople.filter(
-      (person) => person !== userName
-    );
+    meetup.invitedPeople =
+      meetup.invitedPeople.filter(
+        (person) => person !== userName
+      );
 
     await meetup.save();
 
     res.json(meetup);
   } catch (err) {
-    res.status(500).json({ message: "Error joining meetup" });
+    res.status(500).json({
+      message: "Error joining meetup",
+    });
   }
 });
 
 // 6. مغادرة اللقاء
-router.put("/:id/leave", async (req, res) => {
+router.put("/:id/leave", protect, async (req, res) => {
   try {
     const { userName } = req.body;
+
     const meetup = await Meetup.findById(req.params.id);
 
     if (!meetup) {
-      return res.status(404).json({ message: "Meetup not found" });
+      return res.status(404).json({
+        message: "Meetup not found",
+      });
     }
 
     if (!userName) {
-      return res.status(400).json({ message: "userName is required" });
+      return res.status(400).json({
+        message: "userName is required",
+      });
     }
 
     meetup.attendees = meetup.attendees.filter(
@@ -235,35 +232,48 @@ router.put("/:id/leave", async (req, res) => {
 
     await meetup.save();
 
-    res.json(meetup);
+    res.json({
+      message: "Left meetup successfully",
+      meetup,
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error leaving meetup" });
+    res.status(500).json({
+      message: "Error leaving meetup",
+    });
   }
 });
 
 // 7. تجاهل الدعوة
-router.put("/:id/deny", async (req, res) => {
+router.put("/:id/deny", protect, async (req, res) => {
   try {
     const { userName } = req.body;
+
     const meetup = await Meetup.findById(req.params.id);
 
     if (!meetup) {
-      return res.status(404).json({ message: "Meetup not found" });
+      return res.status(404).json({
+        message: "Meetup not found",
+      });
     }
 
     if (!userName) {
-      return res.status(400).json({ message: "userName is required" });
+      return res.status(400).json({
+        message: "userName is required",
+      });
     }
 
-    meetup.invitedPeople = meetup.invitedPeople.filter(
-      (person) => person !== userName
-    );
+    meetup.invitedPeople =
+      meetup.invitedPeople.filter(
+        (person) => person !== userName
+      );
 
     await meetup.save();
 
     res.json(meetup);
   } catch (err) {
-    res.status(500).json({ message: "Error denying invite" });
+    res.status(500).json({
+      message: "Error denying invite",
+    });
   }
 });
 
