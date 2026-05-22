@@ -6,10 +6,9 @@ const Notification = require("../models/Notification");
 const protect = require("../middleware/authMiddleware");
 
 // 1. جلب كل اللقاءات
-router.get("/", protect, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const meetups = await Meetup.find().sort({ createdAt: -1 });
-
     res.json(meetups);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -5,18 +5,18 @@ const meetupSchema = new mongoose.Schema({
 
   location: { type: String, required: true },
 
-  date: { type: String, required: true },
+  date: { type: String, required: true }, // keep as String for compatibility
 
-  time: { type: String, required: true },
+  time: { type: String, required: true }, // keep as String for compatibility
 
   img: {
     type: String,
     default: "https://picsum.photos/400/250"
   },
 
-  attendees: [{ type: String }],
+  attendees: [{ type: String }], // users joined the meetup
 
-  invitedPeople: [{ type: String }],
+  invitedPeople: [{ type: String }], // invited users list
 
   notes: { type: String },
 
