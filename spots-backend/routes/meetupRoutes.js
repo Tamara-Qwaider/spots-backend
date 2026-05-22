@@ -5,10 +5,20 @@ const Meetup = require("../models/Meetup");
 const Notification = require("../models/Notification");
 const protect = require("../middleware/authMiddleware");
 
-// 1. جلب كل اللقاءات
+// 1. جلب اللقاءات النشطة فقط بدون حذف القديم من MongoDB
 router.get("/", async (req, res) => {
   try {
-    const meetups = await Meetup.find().sort({ createdAt: -1 });
+    const now = new Date();
+
+    const meetups = await Meetup.find({
+      status: { $ne: "cancelled" },
+      $or: [
+        { expiresAt: { $gt: now } },
+        { expiresAt: { $exists: false } },
+        { expiresAt: null }
+      ]
+    }).sort({ createdAt: -1 });
+
     res.json(meetups);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -31,6 +41,20 @@ router.post("/create", protect, async (req, res) => {
       img,
     } = req.body;
 
+    const meetupDateTime = new Date(`${date}T${time}`);
+
+    if (isNaN(meetupDateTime.getTime())) {
+      return res.status(400).json({
+        message: "Invalid meetup date or time",
+      });
+    }
+
+    if (meetupDateTime <= new Date()) {
+      return res.status(400).json({
+        message: "You cannot create a meetup in the past",
+      });
+    }
+
     const finalAttendees =
       attendees && attendees.length > 0
         ? attendees
@@ -47,6 +71,8 @@ router.post("/create", protect, async (req, res) => {
       createdBy: createdBy || "Guest",
       attendees: finalAttendees,
       img,
+      expiresAt: meetupDateTime,
+      status: "active",
     });
 
     const newMeetup = await meetup.save();
@@ -77,10 +103,20 @@ router.put("/:id", protect, async (req, res) => {
     meetup.notes = req.body.notes ?? meetup.notes;
     meetup.img = req.body.img ?? meetup.img;
 
+    const updatedDateTime = new Date(`${meetup.date}T${meetup.time}`);
+
+    if (isNaN(updatedDateTime.getTime())) {
+      return res.status(400).json({
+        message: "Invalid meetup date or time",
+      });
+    }
+
+    meetup.expiresAt = updatedDateTime;
+    meetup.status = updatedDateTime > new Date() ? "active" : "expired";
+
     if (req.body.maxParticipants !== undefined) {
       meetup.maxParticipants =
-        Number(req.body.maxParticipants) ||
-        meetup.maxParticipants;
+        Number(req.body.maxParticipants) || meetup.maxParticipants;
     }
 
     if (Array.isArray(req.body.attendees)) {
@@ -93,8 +129,7 @@ router.put("/:id", protect, async (req, res) => {
 
     const updatedMeetup = await meetup.save();
 
-    const attendeesToNotify =
-      updatedMeetup.attendees || [];
+    const attendeesToNotify = updatedMeetup.attendees || [];
 
     if (attendeesToNotify.length > 0) {
       await Notification.insertMany(
@@ -116,7 +151,7 @@ router.put("/:id", protect, async (req, res) => {
   }
 });
 
-// 4. حذف لقاء
+// 4. إلغاء لقاء
 router.delete("/:id", protect, async (req, res) => {
   try {
     const meetup = await Meetup.findById(req.params.id);
@@ -127,8 +162,7 @@ router.delete("/:id", protect, async (req, res) => {
       });
     }
 
-    const attendeesToNotify =
-      meetup.attendees || [];
+    const attendeesToNotify = meetup.attendees || [];
 
     if (attendeesToNotify.length > 0) {
       await Notification.insertMany(
@@ -137,19 +171,20 @@ router.delete("/:id", protect, async (req, res) => {
           meetupId: meetup._id.toString(),
           meetupTitle: meetup.title,
           type: "delete",
-          message: `Meetup "${meetup.title}" has been deleted by admin.`,
+          message: `Meetup "${meetup.title}" has been cancelled by admin.`,
         }))
       );
     }
 
-    await Meetup.findByIdAndDelete(req.params.id);
+    meetup.status = "cancelled";
+    await meetup.save();
 
     res.json({
-      message: "Meetup deleted successfully",
+      message: "Meetup cancelled successfully",
     });
   } catch (err) {
     res.status(500).json({
-      message: "Failed to delete",
+      message: "Failed to cancel meetup",
     });
   }
 });
@@ -173,8 +208,22 @@ router.put("/:id/join", protect, async (req, res) => {
       });
     }
 
-    const maxLimit =
-      meetup.maxParticipants || 10;
+    if (meetup.status === "cancelled") {
+      return res.status(400).json({
+        message: "This meetup has been cancelled",
+      });
+    }
+
+    if (meetup.expiresAt && new Date(meetup.expiresAt) < new Date()) {
+      meetup.status = "expired";
+      await meetup.save();
+
+      return res.status(400).json({
+        message: "This meetup has already ended",
+      });
+    }
+
+    const maxLimit = meetup.maxParticipants || 10;
 
     if (meetup.attendees.length >= maxLimit) {
       return res.status(400).json({
@@ -184,17 +233,15 @@ router.put("/:id/join", protect, async (req, res) => {
 
     if (meetup.attendees.includes(userName)) {
       return res.status(400).json({
-        message:
-          "You have already joined this meetup!",
+        message: "You have already joined this meetup!",
       });
     }
 
     meetup.attendees.push(userName);
 
-    meetup.invitedPeople =
-      meetup.invitedPeople.filter(
-        (person) => person !== userName
-      );
+    meetup.invitedPeople = meetup.invitedPeople.filter(
+      (person) => person !== userName
+    );
 
     await meetup.save();
 
@@ -261,10 +308,9 @@ router.put("/:id/deny", protect, async (req, res) => {
       });
     }
 
-    meetup.invitedPeople =
-      meetup.invitedPeople.filter(
-        (person) => person !== userName
-      );
+    meetup.invitedPeople = meetup.invitedPeople.filter(
+      (person) => person !== userName
+    );
 
     await meetup.save();
 
