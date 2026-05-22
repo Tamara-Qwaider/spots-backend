@@ -9,6 +9,7 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const meetupRoutes = require("./routes/meetupRoutes");
 
 const app = express();
+require('dotenv').config();
 
 app.use(cors());
 app.use(express.json());
