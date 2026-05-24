@@ -51,6 +51,12 @@ const meetupSchema = new mongoose.Schema({
     default: "",
   },
 
+  // 🔥 meetup category for recommendation system
+category: {
+  type: String,
+  default: "",
+},
+
   // Meetup creator
   createdBy: {
     type: String,

@@ -162,18 +162,24 @@ router.delete("/:id", protect, async (req, res) => {
       });
     }
 
+    const io = req.app.get("io");
+
     const attendeesToNotify = meetup.attendees || [];
 
     if (attendeesToNotify.length > 0) {
-      await Notification.insertMany(
-        attendeesToNotify.map((userName) => ({
-          userName,
-          meetupId: meetup._id.toString(),
-          meetupTitle: meetup.title,
-          type: "delete",
-          message: `Meetup "${meetup.title}" has been cancelled by admin.`,
-        }))
-      );
+      const notifications = attendeesToNotify.map((userName) => ({
+        userName,
+        meetupId: meetup._id.toString(),
+        meetupTitle: meetup.title,
+        type: "delete",
+        message: `Meetup "${meetup.title}" has been cancelled by the host.`,
+      }));
+
+      await Notification.insertMany(notifications);
+
+      notifications.forEach((notification) => {
+        io.emit("new_notification", notification);
+      });
     }
 
     meetup.status = "cancelled";
@@ -183,8 +189,11 @@ router.delete("/:id", protect, async (req, res) => {
       message: "Meetup cancelled successfully",
     });
   } catch (err) {
+    console.error("DELETE MEETUP ERROR:", err.message);
+
     res.status(500).json({
-      message: "Failed to cancel meetup",
+      message: "Server error while deleting meetup",
+      error: err.message,
     });
   }
 });
