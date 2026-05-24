@@ -10,6 +10,7 @@ const authRoutes = require("./routes/authRoutes");
 const placeRoutes = require("./routes/placeRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const meetupRoutes = require("./routes/meetupRoutes");
+const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 const server = http.createServer(app);
