@@ -68,6 +68,13 @@ io.on("connection", (socket) => {
       messageData
     );
   });
+  socket.on("typing", (data) => {
+  socket.to(`meetup_${data.meetupId}`).emit("user_typing", data);
+});
+
+socket.on("stop_typing", (data) => {
+  socket.to(`meetup_${data.meetupId}`).emit("user_stop_typing", data);
+});
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
