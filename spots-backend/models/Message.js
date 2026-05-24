@@ -8,8 +8,7 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     senderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
     },
     senderName: {
       type: String,
@@ -20,6 +19,12 @@ const messageSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    readBy: [
+  {
+    type:  String,
+   
+  },
+],
   },
   { timestamps: true }
 );

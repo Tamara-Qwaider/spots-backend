@@ -2,6 +2,32 @@ const express = require("express");
 const router = express.Router();
 const Message = require("../models/Message");
 
+// Get unread counts grouped by meetup
+router.get("/unread/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const unreadMessages = await Message.find({
+      senderId: { $ne: userId },
+      readBy: { $ne: userId },
+    });
+
+    const counts = {};
+
+    unreadMessages.forEach((msg) => {
+      const meetupId = msg.meetupId.toString();
+
+      counts[meetupId] = (counts[meetupId] || 0) + 1;
+    });
+
+    res.json(counts);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
 // Get messages for one meetup
 router.get("/:meetupId", async (req, res) => {
   try {
@@ -29,6 +55,7 @@ router.post("/", async (req, res) => {
       senderId,
       senderName,
       text,
+      readBy: senderId ? [senderId] : [],
     });
 
     res.status(201).json(message);
@@ -36,6 +63,40 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Failed to send message" });
   }
 });
+
+// Mark messages as read
+router.put("/read/:meetupId", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        message: "User ID is required",
+      });
+    }
+
+    await Message.updateMany(
+      {
+        meetupId: req.params.meetupId,
+        readBy: { $ne: userId },
+      },
+      {
+        $push: {
+          readBy: userId,
+        },
+      }
+    );
+
+    res.json({
+      message: "Messages marked as read",
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: err.message,
+    });
+  }
+});
+
 //delete message
 router.delete("/:id", async (req, res) => {
   try {
@@ -56,5 +117,6 @@ router.delete("/:id", async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
