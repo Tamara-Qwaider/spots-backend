@@ -39,6 +39,66 @@ router.get("/", protect, async (req, res) => {
   }
 });
 
+// GET MUTUAL INTEREST USERS
+router.get("/mutual/:userId", protect, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.params.userId).select(
+      "name interests location"
+    );
+
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const currentInterests = currentUser.interests || [];
+
+    if (currentInterests.length === 0) {
+      return res.json([]);
+    }
+
+    const users = await User.find({
+      _id: { $ne: req.params.userId },
+      isBlocked: { $ne: true },
+      interests: { $in: currentInterests },
+    }).select("name image interests location");
+
+    const suggestions = users
+      .map((user) => {
+        const sharedInterests = (user.interests || []).filter((interest) =>
+          currentInterests.includes(interest)
+        );
+
+        const sameLocation =
+          currentUser.location &&
+          user.location &&
+          currentUser.location.toLowerCase().trim() ===
+            user.location.toLowerCase().trim();
+
+        const score = sharedInterests.length + (sameLocation ? 2 : 0);
+
+        return {
+          _id: user._id,
+          name: user.name,
+          image: user.image,
+          location: user.location,
+          sharedInterests,
+          sameLocation,
+          score,
+        };
+      })
+      .filter((user) => user.sharedInterests.length > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6);
+
+    res.json(suggestions);
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to fetch mutual interest users",
+      error: err.message,
+    });
+  }
+});
+
 // GET PROFILE
 router.get("/profile/:id", protect, async (req, res) => {
   try {
