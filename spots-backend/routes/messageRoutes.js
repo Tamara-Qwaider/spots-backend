@@ -1,17 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const Message = require("../models/Message");
+const User = require("../models/User");
 const Meetup = require("../models/Meetup");
 
 // Get unread counts grouped by active meetup only
 router.get("/unread/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.json({});
+    }
+
     const now = new Date();
 
     const activeMeetups = await Meetup.find({
       status: "active",
       expiresAt: { $gt: now },
+      attendees: user.name,
     }).select("_id");
 
     const activeMeetupIds = activeMeetups.map((m) => m._id);
