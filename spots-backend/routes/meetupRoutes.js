@@ -254,12 +254,38 @@ router.put("/:id/join", protect, async (req, res) => {
 
     await meetup.save();
 
-    res.json(meetup);
-  } catch (err) {
-    res.status(500).json({
-      message: "Error joining meetup",
+try {
+  const io = req.app.get("io");
+
+  const hostName =
+    typeof meetup.createdBy === "string"
+      ? meetup.createdBy
+      : meetup.createdBy?.name;
+
+  if (hostName && hostName !== userName) {
+    const notification = await Notification.create({
+      userName: hostName,
+      meetupId: meetup._id.toString(),
+      meetupTitle: meetup.title,
+      type: "join",
+      message: `${userName} joined your meetup "${meetup.title}".`,
     });
+
+    io.emit("new_notification", notification.toObject());
   }
+} catch (notificationErr) {
+  console.error("JOIN NOTIFICATION ERROR:", notificationErr.message);
+}
+
+res.json(meetup);
+} catch (err) {
+  console.error("JOIN ROUTE ERROR:", err);
+
+  res.status(500).json({
+    message: "Error joining meetup",
+    error: err.message,
+  });
+}
 });
 
 // 6. مغادرة اللقاء
