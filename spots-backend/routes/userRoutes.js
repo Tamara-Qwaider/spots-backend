@@ -53,7 +53,7 @@ router.get("/profile/:id", protect, async (req, res) => {
 // UPDATE PROFILE
 router.put("/profile/update/:id", protect, upload.single("image"), async (req, res) => {
   try {
-    const { name, location, bio, interests, savedPlaces, newPlace } = req.body;
+    const { name, location, bio, interests, savedPlaces, newPlace,savedPlacesVisibility } = req.body;
     let query = { $set: {} };
 
     if (name) query.$set.name = name;
@@ -62,6 +62,9 @@ router.put("/profile/update/:id", protect, upload.single("image"), async (req, r
     if (interests) {
       query.$set.interests =
         typeof interests === "string" ? JSON.parse(interests) : interests;
+    }
+    if (savedPlacesVisibility) {
+      query.$set.savedPlacesVisibility = savedPlacesVisibility;
     }
 
     if (req.file) {
@@ -95,20 +98,28 @@ router.delete("/:id", protect, async (req, res) => {
   try {
     const userId = req.params.id;
 
-    const deletedUser = await User.findByIdAndDelete(userId);
+    const user = await User.findById(userId);
 
-    if (!deletedUser) {
+    if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    await Meetup.deleteMany({
+      createdBy: user.name,
+    });
 
     await Meetup.updateMany(
       {},
       {
         $pull: {
-          attendees: { id: userId },
+          attendees: user.name,
+          invitedPeople: user.name,
         },
       }
     );
+
+    await User.findByIdAndDelete(userId);
+
 
     res.json({ message: "User deleted successfully and removed from meetups" });
   } catch (err) {

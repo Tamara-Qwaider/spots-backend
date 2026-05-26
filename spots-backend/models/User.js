@@ -42,26 +42,33 @@ const userSchema = new mongoose.Schema({
   default: false,
 },
 
-permissions: {
-  createMeetup: {
-    type: Boolean,
-    default: true,
+  permissions: {
+    createMeetup: {
+      type: Boolean,
+      default: true,
+    },
+    joinMeetups: {
+      type: Boolean,
+      default: true,
+    },
   },
-  joinMeetups: {
-    type: Boolean,
-    default: true,
-  },
-},
   // بدلاً من الـ ObjectId، نستخدم مصفوفة عادية تخزن بيانات المكان كاملة
   savedPlaces: { 
     type: Array, 
     default: [] 
   },
+
+  savedPlacesVisibility: {
+  type: String,
+  enum: ["public", "private"],
+  default: "private",
+  },
+
   role: {
   type: String,
   enum: ["user", "admin"],
   default: "user",
-},
+  },
 });
 
 module.exports = mongoose.model("User", userSchema);

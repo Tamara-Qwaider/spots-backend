@@ -5,18 +5,74 @@ const Meetup = require("../models/Meetup");
 const Notification = require("../models/Notification");
 const protect = require("../middleware/authMiddleware");
 
+// GET USER MEETUP HISTORY
+router.get("/history/:userName", async (req, res) => {
+  console.log("HISTORY ROUTE HIT");
+  try {
+    const { userName } = req.params;
+    const now = new Date();
+
+    const userMeetups = await Meetup.find({
+      $or: [
+        { createdBy: userName },
+        { attendees: userName },
+      ],
+    });
+
+    const historyMeetups = userMeetups.filter((meetup) => {
+      if (
+        meetup.expiresAt &&
+        new Date(meetup.expiresAt) <= now
+      ) {
+        if (meetup.status !== "expired") {
+          meetup.status = "expired";
+          meetup.save();
+        }
+
+         return true;
+        }
+
+      if (meetup.date && meetup.time) {
+        return new Date(`${meetup.date}T${meetup.time}`) <= now;
+      }
+
+      return false;
+    });
+
+    historyMeetups.sort((a, b) => {
+      const dateA = new Date(a.expiresAt || `${a.date}T${a.time}`);
+      const dateB = new Date(b.expiresAt || `${b.date}T${b.time}`);
+
+      return dateB - dateA;
+    });
+
+    res.json(historyMeetups);
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to fetch meetup history",
+      error: err.message,
+    });
+  }
+});
+
 // 1. جلب اللقاءات النشطة فقط بدون حذف القديم من MongoDB
 router.get("/", async (req, res) => {
   try {
     const now = new Date();
 
+    await Meetup.updateMany(
+      {
+        status: "active",
+        expiresAt: { $lte: now },
+      },
+      {
+        $set: { status: "expired" },
+      }
+    );
+
     const meetups = await Meetup.find({
-      status: { $ne: "cancelled" },
-      $or: [
-        { expiresAt: { $gt: now } },
-        { expiresAt: { $exists: false } },
-        { expiresAt: null }
-      ]
+      status: "active",
+      expiresAt: { $gt: now },
     }).sort({ createdAt: -1 });
 
     res.json(meetups);
@@ -356,5 +412,6 @@ router.put("/:id/deny", protect, async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

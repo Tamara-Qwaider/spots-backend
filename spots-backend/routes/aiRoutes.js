@@ -58,67 +58,106 @@ router.post("/plan-trip", async (req, res) => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `
-You are a smart AI travel planner for an app called VIBE.
+You are a smart AI trip planner for a travel and meetup app called VIBE.
 
-User:
+User profile:
 ${JSON.stringify(user)}
 
-Places:
+Available places:
 ${JSON.stringify(places)}
 
-Create a short one-day personalized itinerary using ONLY the provided places.
-
-Return the plan in this exact clean format:
-
-🌅 Morning
-Place: [place name]
-Why: [one short reason]
-
-☀️ Afternoon
-Place: [place name]
-Why: [one short reason]
-
-🌙 Evening
-Place: [place name]
-Why: [one short reason]
+Return ONLY valid JSON in this exact format:
+{
+  "title": "short personalized trip title",
+  "vibe": "Relaxing | Adventure | Foodie | Cultural | Mixed",
+  "summary": "one short sentence explaining the plan",
+  "schedule": [
+    {
+      "time": "Morning",
+      "emoji": "🌅",
+      "placeId": "place id",
+      "placeName": "place name",
+      "reason": "short personalized reason",
+      "tip": "short useful tip"
+    },
+    {
+      "time": "Afternoon",
+      "emoji": "☀️",
+      "placeId": "place id",
+      "placeName": "place name",
+      "reason": "short personalized reason",
+      "tip": "short useful tip"
+    },
+    {
+      "time": "Evening",
+      "emoji": "🌙",
+      "placeId": "place id",
+      "placeName": "place name",
+      "reason": "short personalized reason",
+      "tip": "short useful tip"
+    }
+  ]
+}
 
 Rules:
-- Do not write a long introduction.
-- Do not write a conclusion.
-- Keep each reason under 15 words.
-- Use only places from the provided list.
-- Make it clean, elegant, and easy to display.
-`
+- Use only places from the provided places list.
+- Do not invent place names or ids.
+- Choose 3 different places.
+- Prefer places matching the user's interests, saved places, viewed places, category, description, and rating.
+- Avoid choosing 3 places from the exact same category unless the user strongly prefers it.
+- Keep reasons under 18 words.
+- Keep tips under 14 words.
+- Return JSON only. No markdown. No explanation.
+- Prefer places that are reasonably close to each other.
+- The title should feel modern, catchy, and personalized.
+`,
     });
+
+    const text = response.text.replace(/```json|```/g, "").trim();
+    const data = JSON.parse(text);
+
+    res.json(data);
+  } catch (err) {
+    console.error("Gemini Trip error:", err);
+
+    const places = req.body.places || [];
+
+    const sortedPlaces = [...places]
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 3);
 
     res.json({
-      tripPlan: response.text,
+      title: "Personalized Day Plan",
+      vibe: "Mixed",
+      summary: "A simple plan based on highly rated places.",
+      schedule: [
+        {
+          time: "Morning",
+          emoji: "🌅",
+          placeId: sortedPlaces[0]?._id || sortedPlaces[0]?.id || "",
+          placeName: sortedPlaces[0]?.name || "A recommended place",
+          reason: "Great place to start your day.",
+          tip: "Go early for a better experience.",
+        },
+        {
+          time: "Afternoon",
+          emoji: "☀️",
+          placeId: sortedPlaces[1]?._id || sortedPlaces[1]?.id || "",
+          placeName: sortedPlaces[1]?.name || "Another nice spot",
+          reason: "Matches popular travel interests.",
+          tip: "Check the weather before going.",
+        },
+        {
+          time: "Evening",
+          emoji: "🌙",
+          placeId: sortedPlaces[2]?._id || sortedPlaces[2]?.id || "",
+          placeName: sortedPlaces[2]?.name || "A relaxing evening spot",
+          reason: "Perfect way to end the day.",
+          tip: "Bring a friend if possible.",
+        },
+      ],
     });
-  } catch (err) {
-  console.error("Gemini Trip error:", err);
-
-  const places = req.body.places || [];
-
-  const sortedPlaces = [...places]
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-    .slice(0, 3);
-
-  res.json({
-    tripPlan: `
-🌅 Morning
-Place: ${sortedPlaces[0]?.name || "A recommended place"}
-Why: Great place to start your day.
-
-☀️ Afternoon
-Place: ${sortedPlaces[1]?.name || "Another nice spot"}
-Why: Matches popular travel interests.
-
-🌙 Evening
-Place: ${sortedPlaces[2]?.name || "A relaxing evening spot"}
-Why: Perfect way to end the day.
-`,
-  });
-}
+  }
 });
 
 module.exports = router;
